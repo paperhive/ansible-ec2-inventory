@@ -21,7 +21,7 @@ ansible-ec2-inventory --config ec2.ini
 
 ### As a Python module
 Example:
-```
+```python
 from ansible_ec2_inventory import Ec2Inventory
 import json
 
