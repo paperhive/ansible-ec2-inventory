@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 '''Provides Ec2Inventory class'''
 
 # (c) 2012-2016 Peter Sankauskas, André Gaul
@@ -22,7 +24,6 @@
 
 import sys
 import os
-import argparse
 import re
 from time import time
 import boto
@@ -46,8 +47,15 @@ class Ec2Inventory(object):
     def _empty_inventory(self):
         return {"_meta": {"hostvars": {}}}
 
-    def __init__(self):
-        ''' Main execution path '''
+    def __init__(self,
+                 configfile,
+                 refresh_cache=False,
+                 boto_profile=None
+                 ):
+        '''Initialize Ec2Inventory'''
+
+        # Boto profile to use (if any)
+        self.boto_profile = boto_profile
 
         # Inventory grouped by instance IDs, tags, security groups, regions,
         # and availability zones
@@ -56,12 +64,8 @@ class Ec2Inventory(object):
         # Index of hostname (address) to instance ID
         self.index = {}
 
-        # Boto profile to use (if any)
-        self.boto_profile = None
-
-        # Read settings and parse CLI arguments
-        self.parse_cli_args()
-        self.read_settings()
+        # Read settings
+        self.read_settings(configfile)
 
         # Make sure that profile_name is not passed at all if not set
         # as pre 2.24 boto will fall over otherwise
@@ -71,23 +75,15 @@ class Ec2Inventory(object):
                                      "use profile")
 
         # Cache
-        if self.args.refresh_cache:
-            self.do_api_calls_update_cache()
-        elif not self.is_cache_valid():
+        if refresh_cache or not self.is_cache_valid():
             self.do_api_calls_update_cache()
 
-        # Data to print
-        if self.args.host:
-            data_to_print = self.get_host_info()
-
-        elif self.args.list:
-            # Display list of instances for inventory
-            if self.inventory == self._empty_inventory():
-                data_to_print = self.get_inventory_from_cache()
-            else:
-                data_to_print = self.json_format_dict(self.inventory, True)
-
-        print(data_to_print)
+    def get_inventory(self):
+        '''Get full inventory'''
+        if self.inventory == self._empty_inventory():
+            return self.get_inventory_from_cache()
+        else:
+            return self.inventory
 
     def is_cache_valid(self):
         ''' Determines if the cache files have expired, or if it is still
@@ -102,20 +98,13 @@ class Ec2Inventory(object):
 
         return False
 
-    def read_settings(self):
+    def read_settings(self, configfile):
         ''' Reads the settings from the ec2.ini file '''
         if six.PY3:
             config = configparser.ConfigParser()
         else:
             config = configparser.SafeConfigParser()
-        ec2_default_ini_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'ec2.ini'
-            )
-        ec2_ini_path = os.path.expanduser(
-            os.path.expandvars(os.environ.get(
-                'EC2_INI_PATH', ec2_default_ini_path
-            )))
-        config.read(ec2_ini_path)
+        config.read(configfile)
 
         # is eucalyptus?
         self.eucalyptus_host = None
@@ -221,7 +210,6 @@ class Ec2Inventory(object):
             self.all_elasticache_nodes = False
 
         # boto configuration profile (prefer CLI argument)
-        self.boto_profile = self.args.boto_profile
         if config.has_option('ec2', 'boto_profile') and not self.boto_profile:
             self.boto_profile = config.get('ec2', 'boto_profile')
 
@@ -310,21 +298,6 @@ class Ec2Inventory(object):
                 if not filter_key:
                     continue
                 self.ec2_instance_filters[filter_key].append(filter_value)
-
-    def parse_cli_args(self):
-        ''' Command line argument processing '''
-
-        parser = argparse.ArgumentParser(description='Produce an Ansible Inventory file based on EC2')
-        parser.add_argument('--list', action='store_true', default=True,
-                           help='List instances (default: True)')
-        parser.add_argument('--host', action='store',
-                           help='Get all the variables about a specific instance')
-        parser.add_argument('--refresh-cache', action='store_true', default=False,
-                           help='Force refresh of cache by making API requests to EC2 (default: False - use cache files)')
-        parser.add_argument('--boto-profile', action='store',
-                           help='Use boto profile for connections to EC2')
-        self.args = parser.parse_args()
-
 
     def do_api_calls_update_cache(self):
         ''' Do API calls to each region, and save data in cache files '''
@@ -1152,24 +1125,24 @@ class Ec2Inventory(object):
 
         return host_info
 
-    def get_host_info(self):
+    def get_host(self, host):
         ''' Get variables about a specific host '''
 
         if len(self.index) == 0:
             # Need to load index from cache
             self.load_index_from_cache()
 
-        if not self.args.host in self.index:
+        if not host in self.index:
             # try updating the cache
             self.do_api_calls_update_cache()
-            if not self.args.host in self.index:
+            if not host in self.index:
                 # host might not exist anymore
-                return self.json_format_dict({}, True)
+                return {}
 
-        (region, instance_id) = self.index[self.args.host]
+        (region, instance_id) = self.index[host]
 
         instance = self.get_instance(region, instance_id)
-        return self.json_format_dict(self.get_host_info_dict_from_instance(instance), True)
+        return self.get_host_info_dict_from_instance(instance)
 
     def push(self, my_dict, key, element):
         ''' Push an element onto an array that may not have been defined in
@@ -1196,8 +1169,7 @@ class Ec2Inventory(object):
 
         cache = open(self.cache_path_cache, 'r')
         json_inventory = cache.read()
-        return json_inventory
-
+        return json.loads(json_inventory)
 
     def load_index_from_cache(self):
         ''' Reads the index from the cache file sets self.index '''
@@ -1206,11 +1178,10 @@ class Ec2Inventory(object):
         json_index = cache.read()
         self.index = json.loads(json_index)
 
-
     def write_to_cache(self, data, filename):
         ''' Writes data in JSON format to a file '''
 
-        json_data = self.json_format_dict(data, True)
+        json_data = json.dumps(data, sort_keys=True, indent=2)
         cache = open(filename, 'w')
         cache.write(json_data)
         cache.close()
@@ -1225,12 +1196,3 @@ class Ec2Inventory(object):
         if not self.replace_dash_in_groups:
             regex += "\-"
         return re.sub(regex + "]", "_", word)
-
-    def json_format_dict(self, data, pretty=False):
-        ''' Converts a dict to a JSON object and dumps it as a formatted
-        string '''
-
-        if pretty:
-            return json.dumps(data, sort_keys=True, indent=2)
-        else:
-            return json.dumps(data)

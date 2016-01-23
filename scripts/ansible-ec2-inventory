@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 '''
 EC2 external inventory script
@@ -11,11 +12,6 @@ NOTE: This script assumes Ansible is being executed where the environment
 variables needed for Boto have already been set:
     export AWS_ACCESS_KEY_ID='AK123'
     export AWS_SECRET_ACCESS_KEY='abc123'
-
-This script also assumes there is an ec2.ini file alongside it.  To specify a
-different path to ec2.ini, define the EC2_INI_PATH environment variable:
-
-    export EC2_INI_PATH=/path/to/my_ec2.ini
 
 If you're using eucalyptus you need to set the above variables and
 you need to define:
@@ -121,7 +117,55 @@ Security groups are comma-separated in 'ec2_security_group_ids' and
 # NOTE: this file is based on the original ansible EC2 inventory, see
 #       https://github.com/ansible/ansible/blob/devel/contrib/inventory/ec2.py
 
+import argparse
+import json
+
 from ansible_ec2_inventory import Ec2Inventory
 
-# Run the script
-Ec2Inventory()
+
+def parse_cli_args():
+    ''' Command line argument processing '''
+
+    parser = argparse.ArgumentParser(
+        description='Produce an Ansible Inventory file based on EC2')
+    parser.add_argument('--config', metavar='CONFIGFILE', required=True,
+                        help='Config file')
+    parser.add_argument('--list', action='store_true', default=True,
+                        help='List all instances')
+    parser.add_argument('--host', action='store',
+                        help='Get all the variables about a specific instance')
+    parser.add_argument('--refresh-cache', action='store_true', default=False,
+                        help='Force refresh of cache by making API requests '
+                             'to EC2 (default: False - use cache files)')
+    parser.add_argument('--boto-profile', action='store',
+                        help='Use boto profile for connections to EC2')
+    return parser.parse_args()
+
+
+def main():
+    '''Run the script'''
+
+    # Parse cli args
+    args = parse_cli_args()
+
+    # Instantiate Ec2Inventory
+    inventory = Ec2Inventory(
+        configfile=args.config,
+        refresh_cache=args.refresh_cache,
+        boto_profile=args.boto_profile
+        )
+
+    # Get data
+    data = None
+    if args.host is not None:
+        data = inventory.get_host(args.host)
+    else:
+        data = inventory.get_inventory()
+
+    # Print
+    data_json = json.dumps(data, sort_keys=True, indent=2)
+    print(data_json)
+
+
+if __name__ == '__main__':
+    main()
