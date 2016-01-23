@@ -22,7 +22,7 @@ setup(
     author_email=__author_email__,
     packages=['ansible_ec2_inventory'],
     description='Extendable Python module for ansible EC2 inventories',
-    long_description=read('README.rst'),
+    long_description=read('README'),
     url=__website__,
     download_url='https://pypi.python.org/pypi/ansible-ec2-inventory',
     license='License :: OSI Approved :: GNU General Public License v3 or '

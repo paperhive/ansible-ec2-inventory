@@ -1,6 +1,6 @@
 .*.swp
 *.pyc
-README.rst
+README
 MANIFEST
 build
 dist

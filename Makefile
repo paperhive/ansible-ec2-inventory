@@ -1,12 +1,12 @@
 default:
 	@echo "\"make upload\"?"
 
-README.rst: README.md
-	pandoc README.md -o README.rst
+README: README.md
+	pandoc README.md -o README
 	python setup.py check -r -s || exit 1
 
-upload: setup.py README.rst
+upload: setup.py README
 	python setup.py sdist upload --sign
 
 clean:
-	rm -f README.rst
+	rm -f README
