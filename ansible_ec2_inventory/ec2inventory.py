@@ -1,106 +1,6 @@
-#!/usr/bin/env python
+'''Provides Ec2Inventory class'''
 
-'''
-EC2 external inventory script
-=================================
-
-Generates inventory that Ansible can understand by making API request to
-AWS EC2 using the Boto library.
-
-NOTE: This script assumes Ansible is being executed where the environment
-variables needed for Boto have already been set:
-    export AWS_ACCESS_KEY_ID='AK123'
-    export AWS_SECRET_ACCESS_KEY='abc123'
-
-This script also assumes there is an ec2.ini file alongside it.  To specify a
-different path to ec2.ini, define the EC2_INI_PATH environment variable:
-
-    export EC2_INI_PATH=/path/to/my_ec2.ini
-
-If you're using eucalyptus you need to set the above variables and
-you need to define:
-
-    export EC2_URL=http://hostname_of_your_cc:port/services/Eucalyptus
-
-If you're using boto profiles (requires boto>=2.24.0) you can choose a profile
-using the --boto-profile command line argument (e.g. ec2.py --boto-profile prod) or using
-the AWS_PROFILE variable:
-
-    AWS_PROFILE=prod ansible-playbook -i ec2.py myplaybook.yml
-
-For more details, see: http://docs.pythonboto.org/en/latest/boto_config_tut.html
-
-When run against a specific host, this script returns the following variables:
- - ec2_ami_launch_index
- - ec2_architecture
- - ec2_association
- - ec2_attachTime
- - ec2_attachment
- - ec2_attachmentId
- - ec2_client_token
- - ec2_deleteOnTermination
- - ec2_description
- - ec2_deviceIndex
- - ec2_dns_name
- - ec2_eventsSet
- - ec2_group_name
- - ec2_hypervisor
- - ec2_id
- - ec2_image_id
- - ec2_instanceState
- - ec2_instance_type
- - ec2_ipOwnerId
- - ec2_ip_address
- - ec2_item
- - ec2_kernel
- - ec2_key_name
- - ec2_launch_time
- - ec2_monitored
- - ec2_monitoring
- - ec2_networkInterfaceId
- - ec2_ownerId
- - ec2_persistent
- - ec2_placement
- - ec2_platform
- - ec2_previous_state
- - ec2_private_dns_name
- - ec2_private_ip_address
- - ec2_publicIp
- - ec2_public_dns_name
- - ec2_ramdisk
- - ec2_reason
- - ec2_region
- - ec2_requester_id
- - ec2_root_device_name
- - ec2_root_device_type
- - ec2_security_group_ids
- - ec2_security_group_names
- - ec2_shutdown_state
- - ec2_sourceDestCheck
- - ec2_spot_instance_request_id
- - ec2_state
- - ec2_state_code
- - ec2_state_reason
- - ec2_status
- - ec2_subnet_id
- - ec2_tenancy
- - ec2_virtualization_type
- - ec2_vpc_id
-
-These variables are pulled out of a boto.ec2.instance object. There is a lack of
-consistency with variable spellings (camelCase and underscores) since this
-just loops through all variables the object exposes. It is preferred to use the
-ones with underscores when multiple exist.
-
-In addition, if an instance has AWS Tags associated with it, each tag is a new
-variable named:
- - ec2_tag_[Key] = [Value]
-
-Security groups are comma-separated in 'ec2_security_group_ids' and
-'ec2_security_group_names'.
-'''
-
-# (c) 2012, Peter Sankauskas
+# (c) 2012-2016 Peter Sankauskas, André Gaul
 #
 # This file is part of Ansible,
 #
@@ -117,7 +17,8 @@ Security groups are comma-separated in 'ec2_security_group_ids' and
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
-######################################################################
+# NOTE: this file is based on the original ansible EC2 inventory, see
+#       https://github.com/ansible/ansible/blob/devel/contrib/inventory/ec2.py
 
 import sys
 import os
@@ -143,7 +44,7 @@ except ImportError:
 class Ec2Inventory(object):
 
     def _empty_inventory(self):
-        return {"_meta" : {"hostvars" : {}}}
+        return {"_meta": {"hostvars": {}}}
 
     def __init__(self):
         ''' Main execution path '''
@@ -166,7 +67,8 @@ class Ec2Inventory(object):
         # as pre 2.24 boto will fall over otherwise
         if self.boto_profile:
             if not hasattr(boto.ec2.EC2Connection, 'profile_name'):
-                self.fail_with_error("boto version must be >= 2.24 to use profile")
+                self.fail_with_error("boto version must be >= 2.24 to "
+                                     "use profile")
 
         # Cache
         if self.args.refresh_cache:
@@ -187,9 +89,9 @@ class Ec2Inventory(object):
 
         print(data_to_print)
 
-
     def is_cache_valid(self):
-        ''' Determines if the cache files have expired, or if it is still valid '''
+        ''' Determines if the cache files have expired, or if it is still
+        valid '''
 
         if os.path.isfile(self.cache_path_cache):
             mod_time = os.path.getmtime(self.cache_path_cache)
@@ -200,15 +102,19 @@ class Ec2Inventory(object):
 
         return False
 
-
     def read_settings(self):
         ''' Reads the settings from the ec2.ini file '''
         if six.PY3:
             config = configparser.ConfigParser()
         else:
             config = configparser.SafeConfigParser()
-        ec2_default_ini_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ec2.ini')
-        ec2_ini_path = os.path.expanduser(os.path.expandvars(os.environ.get('EC2_INI_PATH', ec2_default_ini_path)))
+        ec2_default_ini_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), 'ec2.ini'
+            )
+        ec2_ini_path = os.path.expanduser(
+            os.path.expandvars(os.environ.get(
+                'EC2_INI_PATH', ec2_default_ini_path
+            )))
         config.read(ec2_ini_path)
 
         # is eucalyptus?
@@ -235,7 +141,8 @@ class Ec2Inventory(object):
 
         # Destination addresses
         self.destination_variable = config.get('ec2', 'destination_variable')
-        self.vpc_destination_variable = config.get('ec2', 'vpc_destination_variable')
+        self.vpc_destination_variable = config.get('ec2',
+                                                   'vpc_destination_variable')
 
         # Route53
         self.route53_enabled = config.getboolean('ec2', 'route53')
@@ -274,29 +181,36 @@ class Ec2Inventory(object):
         if self.all_instances:
             self.ec2_instance_states = ec2_valid_instance_states
         elif config.has_option('ec2', 'instance_states'):
-          for instance_state in config.get('ec2', 'instance_states').split(','):
-            instance_state = instance_state.strip()
-            if instance_state not in ec2_valid_instance_states:
-              continue
-            self.ec2_instance_states.append(instance_state)
+            for instance_state in config.get('ec2',
+                                             'instance_states').split(','):
+                instance_state = instance_state.strip()
+                if instance_state not in ec2_valid_instance_states:
+                    continue
+                self.ec2_instance_states.append(instance_state)
         else:
-          self.ec2_instance_states = ['running']
+            self.ec2_instance_states = ['running']
 
         # Return all RDS instances? (if RDS is enabled)
         if config.has_option('ec2', 'all_rds_instances') and self.rds_enabled:
-            self.all_rds_instances = config.getboolean('ec2', 'all_rds_instances')
+            self.all_rds_instances = config.getboolean('ec2',
+                                                       'all_rds_instances')
         else:
             self.all_rds_instances = False
 
-        # Return all ElastiCache replication groups? (if ElastiCache is enabled)
-        if config.has_option('ec2', 'all_elasticache_replication_groups') and self.elasticache_enabled:
-            self.all_elasticache_replication_groups = config.getboolean('ec2', 'all_elasticache_replication_groups')
+        # Return all ElastiCache replication groups?
+        # (if ElastiCache is enabled)
+        if (config.has_option('ec2', 'all_elasticache_replication_groups')
+                and self.elasticache_enabled):
+            self.all_elasticache_replication_groups = config.getboolean(
+                'ec2', 'all_elasticache_replication_groups')
         else:
             self.all_elasticache_replication_groups = False
 
         # Return all ElastiCache clusters? (if ElastiCache is enabled)
-        if config.has_option('ec2', 'all_elasticache_clusters') and self.elasticache_enabled:
-            self.all_elasticache_clusters = config.getboolean('ec2', 'all_elasticache_clusters')
+        if (config.has_option('ec2', 'all_elasticache_clusters')
+                and self.elasticache_enabled):
+            self.all_elasticache_clusters = config.getboolean(
+                'ec2', 'all_elasticache_clusters')
         else:
             self.all_elasticache_clusters = False
 
@@ -1320,8 +1234,3 @@ class Ec2Inventory(object):
             return json.dumps(data, sort_keys=True, indent=2)
         else:
             return json.dumps(data)
-
-
-# Run the script
-Ec2Inventory()
-
