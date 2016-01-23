@@ -77,13 +77,13 @@ class Ec2Inventory(object):
         # Cache
         if refresh_cache or not self.is_cache_valid():
             self.do_api_calls_update_cache()
+        else:
+            self.load_inventory_from_cache()
+            self.load_index_from_cache()
 
     def get_inventory(self):
         '''Get full inventory'''
-        if self.inventory == self._empty_inventory():
-            return self.get_inventory_from_cache()
-        else:
-            return self.inventory
+        return self.inventory
 
     def is_cache_valid(self):
         ''' Determines if the cache files have expired, or if it is still
@@ -1163,13 +1163,13 @@ class Ec2Inventory(object):
         if element not in child_groups:
             child_groups.append(element)
 
-    def get_inventory_from_cache(self):
+    def load_inventory_from_cache(self):
         ''' Reads the inventory from the cache file and returns it as a JSON
         object '''
 
         cache = open(self.cache_path_cache, 'r')
         json_inventory = cache.read()
-        return json.loads(json_inventory)
+        self.inventory = json.loads(json_inventory)
 
     def load_index_from_cache(self):
         ''' Reads the index from the cache file sets self.index '''
