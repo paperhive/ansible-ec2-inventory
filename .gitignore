@@ -1,2 +1,6 @@
 .*.swp
 *.pyc
+README.rst
+MANIFEST
+build
+dist
