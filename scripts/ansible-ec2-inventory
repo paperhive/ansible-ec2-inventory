@@ -155,16 +155,11 @@ def main():
         boto_profile=args.boto_profile
         )
 
-    # Get data
-    data = None
+    # Print data
     if args.host is not None:
-        data = inventory.get_host(args.host)
+        inventory.print_host(args.host)
     else:
-        data = inventory.get_inventory()
-
-    # Print
-    data_json = json.dumps(data, sort_keys=True, indent=2)
-    print(data_json)
+        inventory.print_inventory()
 
 
 if __name__ == '__main__':

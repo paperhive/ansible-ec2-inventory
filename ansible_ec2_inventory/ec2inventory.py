@@ -1196,3 +1196,12 @@ class Ec2Inventory(object):
         if not self.replace_dash_in_groups:
             regex += "\-"
         return re.sub(regex + "]", "_", word)
+
+    def print_inventory(self):
+        self.print_json(self.get_inventory())
+
+    def print_host(self, host):
+        self.print_json(self.get_host(host))
+
+    def print_json(self, data):
+        print(json.dumps(data, sort_keys=True, indent=2))
