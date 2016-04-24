@@ -4,7 +4,7 @@
 from .ec2inventory import Ec2Inventory
 
 # metadata
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 __author__ = 'André Gaul'
 __author_email__ = 'andre@gaul.io'
 __website__ = 'https://github.com/paperhive/ansible-ec2-inventory'
