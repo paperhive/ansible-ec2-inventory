@@ -128,7 +128,8 @@ def parse_cli_args():
 
     parser = argparse.ArgumentParser(
         description='Produce an Ansible Inventory file based on EC2')
-    parser.add_argument('--config', metavar='CONFIGFILE', required=True,
+    parser.add_argument('--config', metavar='CONFIGFILE',
+                        default='/etc/ansible/ec2.ini',
                         help='Config file')
     parser.add_argument('--list', action='store_true', default=True,
                         help='List all instances')
