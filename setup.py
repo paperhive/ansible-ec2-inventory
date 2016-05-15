@@ -4,10 +4,6 @@ import os
 from distutils.core import setup
 import codecs
 
-from ansible_ec2_inventory import (__version__, __author__, __author_email__,
-                                    __website__)
-
-
 def read(fname):
     '''Read a file'''
     return codecs.open(
@@ -17,13 +13,13 @@ def read(fname):
 
 setup(
     name='ansible-ec2-inventory',
-    version=__version__,
-    author=__author__,
-    author_email=__author_email__,
+    version='0.1.7',
+    author='André Gaul',
+    author_email='andre@gaul.io',
     packages=['ansible_ec2_inventory'],
     description='Extendable Python module for ansible EC2 inventories',
     long_description=read('README'),
-    url=__website__,
+    url='https://github.com/paperhive/ansible-ec2-inventory',
     download_url='https://pypi.python.org/pypi/ansible-ec2-inventory',
     license='License :: OSI Approved :: GNU General Public License v3 or '
             'later (GPLv3+)',
