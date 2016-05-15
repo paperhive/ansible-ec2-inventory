@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name='ansible-ec2-inventory',
-    version='0.1.7',
+    version='0.1.8',
     author='André Gaul',
     author_email='andre@gaul.io',
     packages=['ansible_ec2_inventory'],
@@ -24,7 +24,7 @@ setup(
     license='License :: OSI Approved :: GNU General Public License v3 or '
             'later (GPLv3+)',
     platforms='any',
-    requires=['boto'],
+    install_requires=['boto'],
     scripts=['scripts/ansible-ec2-inventory'],
     classifiers=[
         'Development Status :: 4 - Beta',
